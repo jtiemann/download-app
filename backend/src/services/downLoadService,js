@@ -1,0 +1,28 @@
+// backend/src/services/downloadService.js
+import fs from 'fs/promises';
+import { Readable } from 'stream';
+
+export const downloadService = {
+  async createReadStream(fileId, startByte = 0) {
+    const filePath = await this.resolveFilePath(fileId);
+    const handle = await fs.open(filePath);
+    const stream = handle.createReadStream({ start: startByte });
+    
+    stream.on('end', () => handle.close());
+    return stream;
+  },
+
+  async getFileInfo(fileId) {
+    const filePath = await this.resolveFilePath(fileId);
+    const stats = await fs.stat(filePath);
+    return {
+      size: stats.size,
+      name: fileId
+    };
+  },
+
+  resolveFilePath(fileId) {
+    // Implement secure file path resolution
+    return `/path/to/files/${fileId}`;
+  }
+};
