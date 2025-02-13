@@ -15,7 +15,10 @@ export const downloadController = {
       console.log('File info:', fileInfo);
       
       console.log('Creating session');
-      const session = await sessionService.createSession({ fileId });
+      const session = await sessionService.createSession({ 
+        fileId,
+        fileSize: fileInfo.size 
+      });
       console.log('Session created:', session);
 
       res.json({
@@ -35,7 +38,11 @@ export const downloadController = {
 
   async downloadChunk(req, res) {
     const token = req.headers['x-download-token'];
-    const startByte = parseInt(req.headers.range?.split('=')?.[1] || '0');
+    const range = req.headers.range;
+
+    if (!range) {
+      return res.status(400).json({ error: 'Range header is required' });
+    }
 
     try {
       const session = await sessionService.validateSession(token);
@@ -43,27 +50,33 @@ export const downloadController = {
         return res.status(401).json({ error: 'Invalid or expired session' });
       }
 
-      const fileInfo = await downloadService.getFileInfo(session.fileId);
-      const stream = await downloadService.createReadStream(session.fileId, startByte);
+      const [startStr, endStr] = range.replace('bytes=', '').split('-');
+      const start = parseInt(startStr);
+      const end = endStr ? parseInt(endStr) : session.fileSize - 1;
       
+      const contentLength = end - start + 1;
+
       // Set headers for chunked download
       res.writeHead(206, {
         'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${fileInfo.name}"`,
-        'Content-Range': `bytes ${startByte}-${fileInfo.size - 1}/${fileInfo.size}`,
+        'Content-Length': contentLength,
+        'Content-Range': `bytes ${start}-${end}/${session.fileSize}`,
         'Accept-Ranges': 'bytes',
         'Cache-Control': 'no-cache'
       });
 
-      stream.pipe(res);
-
-      // Handle errors in the stream
+      const stream = await downloadService.createReadStream(session.fileId, start, end);
+      
+      // Handle stream errors
       stream.on('error', (error) => {
         console.error('Stream error:', error);
         if (!res.headersSent) {
           res.status(500).json({ error: 'Stream failed', details: error.message });
         }
       });
+
+      // Pipe the stream
+      stream.pipe(res);
 
     } catch (error) {
       console.error('Download chunk failed:', error);

@@ -13,7 +13,7 @@ export default {
     sessionTTL: 24 * 60 * 60 // 24 hours
   },
   download: {
-    chunkSize: 1024 * 1024, // 1MB
+    chunkSize: 1024 * 1024 * 100, // 1MB, --jt increased to 100MB
     maxConcurrent: 3
   },
   storage: {

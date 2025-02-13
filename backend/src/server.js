@@ -14,16 +14,32 @@ const __dirname = dirname(__filename);
 const app = express();
 const logger = setupLogger();
 
-// Rate limiting
-const limiter = rateLimit({
+// Separate rate limiters for different endpoints
+const initLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100 // limit each IP to 100 requests per windowMs
+});
+
+const chunkLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 600, // 10 requests per second
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json({
+      error: 'Too many requests',
+      retryAfter: res.getHeader('Retry-After')
+    });
+  }
 });
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(limiter);
+
+// Apply rate limiting per route
+app.use('/api/downloads/init', initLimiter);
+app.use('/api/downloads/chunk', chunkLimiter);
 
 // Request logging
 app.use((req, res, next) => {
