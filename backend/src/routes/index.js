@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { downloadRoutes } from './download.routes.js';
+import { fileRoutes } from './files.routes.js';
 
 export const setupRoutes = (app) => {
   // Health check
@@ -9,4 +10,5 @@ export const setupRoutes = (app) => {
 
   // API routes
   app.use('/api/downloads', downloadRoutes);
+  app.use('/api/files', fileRoutes);
 };
